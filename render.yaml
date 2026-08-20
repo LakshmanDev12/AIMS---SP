@@ -1,0 +1,48 @@
+services:
+  # --- Backend API Service ---
+  - type: web
+    name: aims-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DATABASE_URL
+        value: sqlite:///./aims.db
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: STALE_THRESHOLD_DAYS
+        value: 30
+      - key: AUTO_REVOKE_THRESHOLD_DAYS
+        value: 90
+      - key: CREDENTIAL_LIFETIME_DAYS
+        value: 90
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:5173,http://localhost:3000,https://aims-frontend.onrender.com
+      - key: DEBUG
+        value: "false"
+      - key: AUTH0_ENABLED
+        value: "false"
+
+  # --- Frontend Static Site ---
+  - type: web
+    name: aims-frontend
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: aims-api
+          property: host
